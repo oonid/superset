@@ -136,7 +136,9 @@ function SignInPage() {
 					</div>
 
 					<div className="flex flex-col gap-3 w-full max-w-xs">
-						{env.NODE_ENV === "development" && (
+						{(env.NODE_ENV === "development" || 
+						  env.NEXT_PUBLIC_API_URL.startsWith("http://localhost:") || 
+						  env.NEXT_PUBLIC_API_URL.startsWith("http://127.0.0.1:")) && (
 							<Button
 								variant="outline"
 								size="lg"
