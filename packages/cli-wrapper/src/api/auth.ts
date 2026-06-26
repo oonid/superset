@@ -127,13 +127,22 @@ authRouter.post("/sign-up/email", async (c) => {
 authRouter.get("/get-session", async (c) => {
 	const result = await resolveSession(c.req.header("authorization"));
 	if (!result) {
-		return c.json({ error: "Unauthorized" }, 401);
+		return c.json({ message: "Unauthorized" }, 401);
 	}
 
 	return c.json({
 		session: result.session,
 		user: result.user,
 	});
+});
+
+// POST /api/auth/sign-out
+authRouter.post("/sign-out", async (c) => {
+	const result = await resolveSession(c.req.header("authorization"));
+	if (result) {
+		await db.delete(sessions).where(eq(sessions.token, result.session.token));
+	}
+	return c.json({ success: true });
 });
 
 // GET /api/auth/token
@@ -144,7 +153,7 @@ authRouter.get("/get-session", async (c) => {
 authRouter.get("/token", async (c) => {
 	const result = await resolveSession(c.req.header("authorization"));
 	if (!result) {
-		return c.json({ error: "Unauthorized" }, 401);
+		return c.json({ message: "Unauthorized" }, 401);
 	}
 
 	const token = signSessionJwt({
@@ -153,6 +162,8 @@ authRouter.get("/token", async (c) => {
 		organizationIds: result.user.organizationIds ?? [],
 	});
 
+	// Provide token in both body and header to satisfy the client interceptor
+	c.header("set-auth-jwt", token);
 	return c.json({ token });
 });
 
@@ -162,7 +173,7 @@ authRouter.get("/token", async (c) => {
 authRouter.get("/organization/get-full-organization", async (c) => {
 	const result = await resolveSession(c.req.header("authorization"));
 	if (!result) {
-		return c.json({ error: "Unauthorized" }, 401);
+		return c.json({ message: "Unauthorized" }, 401);
 	}
 
 	const organizationId =
