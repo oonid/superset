@@ -10,6 +10,14 @@ import {
 	protocol,
 	session,
 } from "electron";
+
+// Chrome sandbox requires user namespaces, which are unavailable in Docker.
+// Set ELECTRON_NO_SANDBOX=1 to opt in to --no-sandbox (dev/Docker only).
+if (process.env.ELECTRON_NO_SANDBOX === "1") {
+	app.commandLine.appendSwitch("no-sandbox");
+	app.commandLine.appendSwitch("disable-dev-shm-usage");
+}
+
 import { makeAppSetup } from "lib/electron-app/factories/app/setup";
 import {
 	handleAuthCallback,
@@ -342,6 +350,27 @@ if (!gotTheLock) {
 		registerWithMacOSNotificationCenter();
 		requestAppleEventsAccess();
 		requestLocalNetworkAccess();
+
+		// Fix 'null' Origin headers sent by file:// protocol
+		const handleOrigin = (
+			details: Electron.OnBeforeSendHeadersListenerDetails,
+			callback: (beforeSendResponse: Electron.BeforeSendResponse) => void
+		) => {
+			const originKey = Object.keys(details.requestHeaders).find(
+				(k) => k.toLowerCase() === "origin"
+			);
+			if (originKey) {
+				if (details.requestHeaders[originKey] === "null") {
+					details.requestHeaders[originKey] = "superset://app";
+				}
+			} else {
+				details.requestHeaders["Origin"] = "superset://app";
+			}
+			callback({ requestHeaders: details.requestHeaders });
+		};
+		const filter = { urls: ["http://localhost:*/*", "http://127.0.0.1:*/*", "https://*.superset.sh/*"] };
+		session.defaultSession.webRequest.onBeforeSendHeaders(filter, handleOrigin);
+		session.fromPartition("persist:superset").webRequest.onBeforeSendHeaders(filter, handleOrigin);
 
 		// Must register on both default session and the app's custom partition
 		const iconProtocolHandler = (request: Request) => {
