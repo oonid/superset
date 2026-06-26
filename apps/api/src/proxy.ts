@@ -17,6 +17,8 @@ function getAllowedOrigins(deploymentOrigin: string) {
 		env.NEXT_PUBLIC_WEB_URL,
 		env.NEXT_PUBLIC_ADMIN_URL,
 		env.NEXT_PUBLIC_DESKTOP_URL,
+		"superset://app",
+		"superset://",
 		...getTrustedVercelPreviewOrigins(deploymentOrigin),
 		...desktopDevOrigins,
 	].filter(Boolean);
