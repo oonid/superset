@@ -82,25 +82,42 @@ const repoRoot = resolve(desktopDir, "../..");
 config({ path: resolve(repoRoot, ".env"), override: false, quiet: true });
 
 const cliDir = resolve(repoRoot, "packages/cli");
-const outfile = resolve(
+const wrapperDir = resolve(repoRoot, "packages/cli-wrapper");
+
+const outfileCli = resolve(
 	desktopDir,
 	"dist/resources/bin",
 	TARGET_PLATFORM === "win32" ? "superset.exe" : "superset",
 );
+const outfileWrapper = resolve(
+	desktopDir,
+	"dist/resources/bin",
+	TARGET_PLATFORM === "win32" ? "superset-dev.exe" : "superset-dev",
+);
 
-mkdirSync(dirname(outfile), { recursive: true });
+mkdirSync(dirname(outfileCli), { recursive: true });
 
 await run(
 	"bun",
-	["run", "build", `--target=${getBunTarget()}`, `--outfile=${outfile}`],
+	["run", "build", `--target=${getBunTarget()}`, `--outfile=${outfileCli}`],
 	{
 		cwd: cliDir,
 		env: buildCliBuildEnv(),
 	},
 );
 
+await run(
+	"bun",
+	["run", "build", `--target=${getBunTarget()}`, `--outfile=${outfileWrapper}`],
+	{
+		cwd: wrapperDir,
+		env: buildCliBuildEnv(),
+	},
+);
+
 if (TARGET_PLATFORM !== "win32") {
-	chmodSync(outfile, 0o755);
+	chmodSync(outfileCli, 0o755);
+	chmodSync(outfileWrapper, 0o755);
 }
 
-console.log(`[desktop] bundled CLI written to ${outfile}`);
+console.log(`[desktop] bundled CLIs written to ${outfileCli} and ${outfileWrapper}`);

@@ -145,8 +145,8 @@ const config: Configuration = {
 		...(existsSync(linuxIconPath) ? { icon: linuxIconPath } : {}),
 		category: "Utility",
 		synopsis: pkg.description,
-		target: ["AppImage"],
-		artifactName: `superset-\${version}-\${arch}.\${ext}`,
+		target: ["AppImage", "deb"],
+		artifactName: `\${productName}-\${version}-\${arch}.\${ext}`,
 	},
 
 	// Windows
