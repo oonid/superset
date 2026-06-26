@@ -31,7 +31,7 @@ export function preloadActiveOrganizationCollections(
 }
 
 export function CollectionsProvider({ children }: { children: ReactNode }) {
-	const { data: session, refetch: refetchSession } = authClient.useSession();
+	const { data: session } = authClient.useSession();
 	const [isSwitching, setIsSwitching] = useState(false);
 	const activeOrganizationId = env.SKIP_ENV_VALIDATION
 		? MOCK_ORG_ID
@@ -44,12 +44,12 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
 			try {
 				await authClient.organization.setActive({ organizationId });
 				await preloadCollections(organizationId);
-				await refetchSession();
+				await authClient.getSession({ fetchOptions: { force: true } });
 			} finally {
 				setIsSwitching(false);
 			}
 		},
-		[activeOrganizationId, refetchSession],
+		[activeOrganizationId],
 	);
 
 	useEffect(() => {
