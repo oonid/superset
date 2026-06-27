@@ -41,7 +41,12 @@ const logLevel = (process.env.LOG_LEVEL ?? "info").toLowerCase();
 if (!["silent", "off", "none"].includes(logLevel)) {
 	app.use("*", logger());
 }
-app.use("*", cors());
+app.use(
+	"*",
+	cors({
+		exposeHeaders: ["set-auth-jwt"],
+	}),
+);
 
 app.get("/", (c) => c.text("Superset TS Backend is running!"));
 app.get("/api/health", (c) => c.text("OK"));
