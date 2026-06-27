@@ -164,7 +164,7 @@ authRouter.get("/token", async (c) => {
 
 	// Provide token in both body and header to satisfy the client interceptor
 	c.header("set-auth-jwt", token);
-	return c.json({ token });
+	return c.json({ token, jwt: token });
 });
 
 // GET /api/auth/organization/get-full-organization

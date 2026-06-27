@@ -21,7 +21,7 @@ export interface SessionJwtUser {
 // shared dev secret since it exposes no JWKS endpoint and relay verification is
 // bypassed for local installs.
 export function signSessionJwt(user: SessionJwtUser): string {
-	const apiUrl = process.env.SUPERSET_API_URL || "https://api.superset.sh";
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 	return jwt.sign(
 		{
 			sub: user.id,
