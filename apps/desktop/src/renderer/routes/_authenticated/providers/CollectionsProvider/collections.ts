@@ -251,8 +251,10 @@ const handleElectricSyncError: ElectricSyncErrorHandler = async (error) => {
 				}
 			}).then(r => r.json());
 			
-			if (result?.token) {
+			if (result?.token && result.token !== getJwt()) {
 				setJwt(result.token);
+			} else if (result?.token === getJwt()) {
+				console.error("[collections] Server returned same JWT, refusing to refresh to prevent loop");
 			}
 		} catch (refreshError) {
 			console.error("[collections] JWT refresh after 401 failed", refreshError);

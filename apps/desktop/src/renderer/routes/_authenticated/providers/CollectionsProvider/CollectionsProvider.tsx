@@ -44,7 +44,7 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
 			try {
 				await authClient.organization.setActive({ organizationId });
 				await preloadCollections(organizationId);
-				await authClient.getSession({ fetchOptions: { force: true } });
+				await authClient.getSession();
 			} finally {
 				setIsSwitching(false);
 			}

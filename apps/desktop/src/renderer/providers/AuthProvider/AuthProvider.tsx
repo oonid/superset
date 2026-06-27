@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { authClient, setAuthToken, setJwt } from "renderer/lib/auth-client";
+import { env } from "renderer/env.renderer";
+import { authClient, getAuthToken, setAuthToken, setJwt } from "renderer/lib/auth-client";
 import { SupersetLogo } from "renderer/routes/sign-in/components/SupersetLogo/SupersetLogo";
 import { electronTrpc } from "../../lib/electron-trpc";
 
