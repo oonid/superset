@@ -32,9 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						);
 					}
 					try {
-						const res = await authClient.token();
-						if (res.data?.token) {
-							setJwt(res.data.token);
+						const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/auth/token`, {
+							headers: {
+								Authorization: `Bearer ${storedToken.token}`
+							}
+						}).then(r => r.json());
+						
+						if (res?.token) {
+							setJwt(res.token);
 						}
 					} catch (err) {
 						console.warn(
@@ -88,17 +93,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		if (!isHydrated) return;
 
-		const refreshJwt = () =>
-			authClient
-				.token()
+		const refreshJwt = () => {
+			const token = getAuthToken();
+			if (!token) return Promise.resolve();
+			
+			return fetch(`${env.NEXT_PUBLIC_API_URL}/api/auth/token`, {
+				headers: {
+					Authorization: `Bearer ${token}`
+				}
+			})
+				.then((res) => res.json())
 				.then((res) => {
-					if (res.data?.token) {
-						setJwt(res.data.token);
+					if (res?.token) {
+						setJwt(res.token);
 					}
 				})
 				.catch((err: unknown) => {
 					console.warn("[AuthProvider] JWT refresh failed", err);
 				});
+		};
 
 		refreshJwt();
 		const interval = setInterval(refreshJwt, 50 * 60 * 1000);

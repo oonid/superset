@@ -242,9 +242,17 @@ type ElectricSyncErrorHandler = NonNullable<ShapeStreamOptions["onError"]>;
 const handleElectricSyncError: ElectricSyncErrorHandler = async (error) => {
 	if (error instanceof FetchError && error.status === 401) {
 		try {
-			const result = await authClient.token();
-			if (result.data?.token) {
-				setJwt(result.data.token);
+			const currentToken = getAuthToken();
+			if (!currentToken) return {};
+			
+			const result = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/auth/token`, {
+				headers: {
+					Authorization: `Bearer ${currentToken}`
+				}
+			}).then(r => r.json());
+			
+			if (result?.token) {
+				setJwt(result.token);
 			}
 		} catch (refreshError) {
 			console.error("[collections] JWT refresh after 401 failed", refreshError);

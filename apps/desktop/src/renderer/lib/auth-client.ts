@@ -3,7 +3,6 @@ import { stripeClient } from "@better-auth/stripe/client";
 import type { auth } from "@superset/auth/server";
 import {
 	customSessionClient,
-	jwtClient,
 	organizationClient,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
@@ -51,7 +50,6 @@ export const authClient = createAuthClient({
 		customSessionClient<typeof auth>(),
 		stripeClient({ subscription: true }),
 		apiKeyClient(),
-		jwtClient(),
 	],
 	fetchOptions: {
 		credentials: "include",
