@@ -39,7 +39,13 @@ export const app = new Hono();
 // Set LOG_LEVEL=silent (or off/none) to disable request logs; any other value enables them.
 const logLevel = (process.env.LOG_LEVEL ?? "info").toLowerCase();
 if (!["silent", "off", "none"].includes(logLevel)) {
-	app.use("*", logger());
+	app.use(
+		"*",
+		logger((str, ...rest) => {
+			if (typeof str === "string" && str.includes("/v1/shape")) return;
+			console.log(str, ...rest);
+		}),
+	);
 }
 app.use(
 	"*",
@@ -65,13 +71,13 @@ export async function startServer(config: ServerConfig): Promise<void> {
 	// browser-launched integrations shim. Both ports serve the full app, so the
 	// shim's relative redirect into /api/github/install stays on whatever port
 	// the browser used.
-	serve({ fetch: app.fetch, port: config.apiPort }, (info) => {
+	serve({ fetch: app.fetch, port: config.apiPort, hostname: "::" }, (info) => {
 		console.log(`Listening on http://localhost:${info.port} (api)`);
 	});
 
 	if (config.webPort !== config.apiPort) {
 		try {
-			serve({ fetch: app.fetch, port: config.webPort }, (info) => {
+			serve({ fetch: app.fetch, port: config.webPort, hostname: "::" }, (info) => {
 				console.log(`Listening on http://localhost:${info.port} (web)`);
 			});
 		} catch (error) {
