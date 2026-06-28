@@ -167,6 +167,23 @@ authRouter.get("/token", async (c) => {
 	return c.json({ token, jwt: token });
 });
 
+// Alias for better-auth default jwt endpoint
+authRouter.get("/jwt", async (c) => {
+	const result = await resolveSession(c.req.header("authorization"));
+	if (!result) {
+		return c.json({ message: "Unauthorized" }, 401);
+	}
+
+	const token = signSessionJwt({
+		id: result.user.id,
+		email: result.user.email,
+		organizationIds: result.user.organizationIds ?? [],
+	});
+
+	c.header("set-auth-jwt", token);
+	return c.json({ token, jwt: token });
+});
+
 // GET /api/auth/organization/get-full-organization
 // Mirrors the better-auth organization plugin: return the active organization
 // (or `?organizationId=`) with its members (incl. user), teams, and invitations.

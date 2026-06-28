@@ -6,7 +6,7 @@ export interface OAuthState {
 }
 
 function getJwtSecret() {
-	return process.env.JWT_SECRET || "super_secret_local_dev_key";
+	return process.env.JWT_SECRET || "local_electric_dev_secret";
 }
 
 export interface SessionJwtUser {

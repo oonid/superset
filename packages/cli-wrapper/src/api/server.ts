@@ -57,10 +57,13 @@ app.use(
 app.get("/", (c) => c.text("Superset TS Backend is running!"));
 app.get("/api/health", (c) => c.text("OK"));
 
+import { electricRouter } from "./electric";
+
 app.route("/api/auth", authRouter);
 app.route("/api/github", githubRouter);
 app.route("/api/chat", chatRouter);
 app.route("/api/trpc", trpcRouter);
+app.route("/v1", electricRouter);
 // Web/integrations shim — stands in for upstream apps/web, which is not bundled
 // in the Linux installer. Served on the web port alongside the API.
 app.route("/integrations", webRouter);
@@ -86,6 +89,16 @@ export async function startServer(config: ServerConfig): Promise<void> {
 				`Web shim: failed to bind port ${config.webPort} — ${message}`,
 			);
 		}
+	}
+
+	// Also bind to the default ElectricSQL port (8787) so the UI's baked-in 
+	// NEXT_PUBLIC_ELECTRIC_URL hits our mock /v1/shape endpoint without needing rebuild overrides.
+	try {
+		serve({ fetch: app.fetch, port: 8787, hostname: "::" }, (info) => {
+			console.log(`Listening on http://localhost:${info.port} (mock ElectricSQL)`);
+		});
+	} catch (error) {
+		console.warn(`Mock ElectricSQL: failed to bind port 8787 — ${error}`);
 	}
 
 	// Verify database connectivity at startup and report the target so operators
