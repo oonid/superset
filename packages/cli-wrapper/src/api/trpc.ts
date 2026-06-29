@@ -209,7 +209,7 @@ trpcRouter.all("/*", async (c) => {
 				if (err.message?.includes("v2_projects_org_slug_unique")) {
 					res = { error: { message: "Project slug already exists", code: -32603, data: { code: "CONFLICT", httpStatus: 409 } } };
 				} else {
-					res = { error: { message: err.message, code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 } } };
+					console.error(err); res = { error: { message: err.message, code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 } } };
 				}
 			}
 		} else if (p === "v2Project.delete") {
@@ -314,6 +314,21 @@ trpcRouter.all("/*", async (c) => {
 						}
 					}
 
+					// Also check for existing main workspace for this host/project to avoid unique constraint violations
+					if (type === "main") {
+						const existingMain = await db.query.v2Workspaces.findFirst({
+							where: and(
+								eq(v2Workspaces.projectId, projectId),
+								eq(v2Workspaces.hostId, hostId),
+								eq(v2Workspaces.type, "main")
+							)
+						});
+						if (existingMain) {
+							res = { result: { data: superjsonSerialize(existingMain) } };
+							return;
+						}
+					}
+
 					const [newWs] = await db.insert(v2Workspaces).values({
 						...(inputData?.id ? { id: inputData.id } : {}),
 						organizationId: orgId,
@@ -325,7 +340,7 @@ trpcRouter.all("/*", async (c) => {
 					}).returning();
 					res = { result: { data: superjsonSerialize(newWs) } };
 				} catch (err: any) {
-					res = { error: { message: err.message, code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 } } };
+					console.error(err); res = { error: { message: err.message, code: -32603, data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 } } };
 				}
 			} else {
 				res = { error: { message: "Missing input", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };

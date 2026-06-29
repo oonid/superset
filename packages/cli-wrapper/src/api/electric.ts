@@ -32,8 +32,8 @@ electricRouter.get("/shape", async (c) => {
 		for (const [key, value] of Object.entries(obj)) {
 			const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 			if (value instanceof Date) {
-				// ElectricSQL usually expects Postgres timestamps as 'YYYY-MM-DD HH:mm:ss.SSS' or similar, without 'T' and 'Z'
-				result[snakeKey] = value.toISOString().replace("T", " ").replace("Z", "");
+				// ElectricSQL usually expects Postgres timestamps as ISO strings
+				result[snakeKey] = value.toISOString();
 			} else {
 				result[snakeKey] = value;
 			}
@@ -97,7 +97,7 @@ electricRouter.get("/shape", async (c) => {
 			// Extract id if available (for auth tables it might not exist or be different)
 			const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
 			messages.push({
-				headers: { operation: "insert", txid: "1", lsn: "1" },
+				headers: { operation: "insert", txid: "1", lsn: "1", relation: ["public", table as string] },
 				key: `"${primaryKeyId}"`,
 				value: mapped,
 			});
