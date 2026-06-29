@@ -301,6 +301,19 @@ trpcRouter.all("/*", async (c) => {
 			const type = inputData?.type;
 			if (orgId && projectId && hostId && name && branch) {
 				try {
+					if (inputData?.id) {
+						const existing = await db.query.v2Workspaces.findFirst({
+							where: and(
+								eq(v2Workspaces.organizationId, orgId),
+								eq(v2Workspaces.id, inputData.id)
+							)
+						});
+						if (existing) {
+							res = { result: { data: superjsonSerialize(existing) } };
+							return;
+						}
+					}
+
 					const [newWs] = await db.insert(v2Workspaces).values({
 						...(inputData?.id ? { id: inputData.id } : {}),
 						organizationId: orgId,

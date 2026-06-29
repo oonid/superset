@@ -73,10 +73,16 @@ electricRouter.get("/shape", async (c) => {
 	// Artificial delays to prevent local SQLite foreign key constraint races.
 	// Since all shape streams start concurrently, tables with dependencies
 	// must arrive AFTER their parent tables.
-	if (table === "v2_workspaces") {
-		await new Promise(r => setTimeout(r, 2000)); // depends on orgs, projects, hosts
-	} else if (table === "v2_projects" || table === "v2_users_hosts") {
-		await new Promise(r => setTimeout(r, 1000)); // depends on orgs / hosts
+	const level1 = [
+		"v2_projects", "v2_hosts", "projects", "tasks", "task_statuses",
+		"auth.members", "auth.invitations", "auth.teams", "auth.team_members"
+	];
+	const level2 = ["v2_workspaces", "v2_users_hosts", "v2_clients", "workspaces"];
+	
+	if (level2.includes(table as string)) {
+		await new Promise(r => setTimeout(r, 2000));
+	} else if (level1.includes(table as string)) {
+		await new Promise(r => setTimeout(r, 1000));
 	}
 
 	if (schemaTable) {
