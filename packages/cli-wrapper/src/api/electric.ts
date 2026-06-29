@@ -8,15 +8,18 @@ electricRouter.get("/shape", async (c) => {
 	const table = c.req.query("table");
 	const offset = c.req.query("offset");
 
-	c.header("Content-Type", "application/json");
-	c.header("Access-Control-Allow-Origin", "*");
-
 	// If this is a subsequent poll (offset != -1), simulate a long-polling
 	// stream by holding the connection open for 30s before returning empty.
 	// This prevents the Electric client from spinning CPU in an infinite fetch loop.
 	if (offset && offset !== "-1") {
 		await new Promise((r) => setTimeout(r, 30000));
-		return c.json([]);
+		const msg = JSON.stringify({ headers: { control: "up-to-date", txid: 1, lsn: 1 } }) + "\n";
+		return new Response(msg, {
+			headers: {
+				"Content-Type": "application/x-ndjson",
+				"Access-Control-Allow-Origin": "*",
+			}
+		});
 	}
 
 	// Initial sync (offset == -1 or omitted): return all rows for the table
@@ -52,5 +55,11 @@ electricRouter.get("/shape", async (c) => {
 		headers: { control: "up-to-date", txid: 1, lsn: 1 },
 	});
 
-	return c.json(messages);
+	const ndjson = messages.map(m => JSON.stringify(m)).join("\n");
+	return new Response(ndjson, {
+		headers: {
+			"Content-Type": "application/x-ndjson",
+			"Access-Control-Allow-Origin": "*",
+		}
+	});
 });
