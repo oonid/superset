@@ -42,7 +42,6 @@ if (!["silent", "off", "none"].includes(logLevel)) {
 	app.use(
 		"*",
 		logger((str, ...rest) => {
-			if (typeof str === "string" && str.includes("/v1/shape")) return;
 			console.log(str, ...rest);
 		}),
 	);
