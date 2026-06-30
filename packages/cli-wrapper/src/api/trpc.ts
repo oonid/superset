@@ -310,7 +310,7 @@ trpcRouter.all("/*", async (c) => {
 						});
 						if (existing) {
 							res = { result: { data: superjsonSerialize(existing) } };
-							batchResponses[key] = res;
+							results.push(res);
 							continue;
 						}
 					}
@@ -326,7 +326,7 @@ trpcRouter.all("/*", async (c) => {
 						});
 						if (existingMain) {
 							res = { result: { data: superjsonSerialize(existingMain) } };
-							batchResponses[key] = res;
+							results.push(res);
 							continue;
 						}
 					}
