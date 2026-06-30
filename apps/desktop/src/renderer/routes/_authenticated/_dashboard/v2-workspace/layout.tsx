@@ -49,8 +49,14 @@ function V2WorkspaceLayout() {
 				.where(({ failed }) => eq(failed.id, workspaceId ?? "")),
 		[collections, workspaceId],
 	);
+	const { data: allWorkspaces } = useLiveQuery(
+		(q) => q.from({ v2Workspaces: collections.v2Workspaces }),
+		[collections]
+	);
 	const workspace = workspaces?.[0] ?? null;
 	const failedEntry = failedEntries?.[0] ?? null;
+
+	console.log("DEBUG: workspaces lookup for", workspaceId, workspaces, "isReady", isReady, "allWorkspaces:", allWorkspaces);
 
 	useEffect(() => {
 		if (workspace?.$synced === true && pendingTransaction?.type === "insert") {
