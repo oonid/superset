@@ -98,11 +98,9 @@ electricRouter.get("/shape", async (c) => {
 		headers: { control: "up-to-date", global_last_seen_lsn: 1 },
 	});
 
-	const ndjson = messages.map((m) => JSON.stringify(m)).join("\n") + "\n";
-	c.header("Content-Type", "application/x-ndjson");
 	c.header("electric-handle", `mock-handle-${table}`);
 	c.header("electric-schema", "{}");
 	c.header("electric-cursor", "1");
 	c.header("electric-offset", "1_0");
-	return c.body(ndjson);
+	return c.json(messages);
 });
