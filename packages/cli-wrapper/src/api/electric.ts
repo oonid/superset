@@ -19,7 +19,9 @@ electricRouter.get("/shape", async (c) => {
 			headers: {
 				"Content-Type": "application/x-ndjson",
 				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Expose-Headers": "electric-handle, electric-cursor, electric-offset, electric-schema",
 				"electric-handle": `${table}-handle`,
+				"electric-schema": "{}",
 				"electric-cursor": "1",
 				"electric-offset": "1_0",
 			},
@@ -113,8 +115,9 @@ electricRouter.get("/shape", async (c) => {
 		headers: {
 			"Content-Type": "application/x-ndjson",
 			"Access-Control-Allow-Origin": "*",
-			"Access-Control-Expose-Headers": "electric-handle, electric-cursor, electric-offset",
+			"Access-Control-Expose-Headers": "electric-handle, electric-cursor, electric-offset, electric-schema",
 			"electric-handle": `mock-handle-${table}`,
+			"electric-schema": "{}",
 			"electric-cursor": "1",
 			"electric-offset": "1_0",
 		}

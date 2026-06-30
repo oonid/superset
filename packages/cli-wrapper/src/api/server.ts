@@ -49,7 +49,7 @@ if (!["silent", "off", "none"].includes(logLevel)) {
 app.use(
 	"*",
 	cors({
-		exposeHeaders: ["set-auth-jwt"],
+		exposeHeaders: ["set-auth-jwt", "electric-handle", "electric-cursor", "electric-offset", "electric-schema", "electric-up-to-date"],
 	}),
 );
 
