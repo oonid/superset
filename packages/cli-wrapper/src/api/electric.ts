@@ -9,18 +9,11 @@ electricRouter.get("/shape", async (c) => {
 	const table = c.req.query("table");
 	const offset = c.req.query("offset");
 
-	// If this is a subsequent poll (offset != -1), simulate a long-polling
-	// stream by holding the connection open for 30s before returning empty.
-	// This prevents the Electric client from spinning CPU in an infinite fetch loop.
+	// If this is a subsequent poll (offset != -1), wait 3 seconds before querying
+	// the database again. This simulates long-polling while allowing the mock
+	// to "push" newly created workspaces (like when created via TRPC).
 	if (offset && offset !== "-1") {
-		await new Promise((r) => setTimeout(r, 30000));
-		const msg = JSON.stringify({ headers: { control: "up-to-date", txid: 1, lsn: 1 } }) + "\n";
-		c.header("Content-Type", "application/x-ndjson");
-		c.header("electric-handle", `${table}-handle`);
-		c.header("electric-schema", "{}");
-		c.header("electric-cursor", "1");
-		c.header("electric-offset", "1_0");
-		return c.body(msg);
+		await new Promise((r) => setTimeout(r, 3000));
 	}
 
 	// Initial sync (offset == -1 or omitted): return all rows for the table
