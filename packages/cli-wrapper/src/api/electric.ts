@@ -15,17 +15,12 @@ electricRouter.get("/shape", async (c) => {
 	if (offset && offset !== "-1") {
 		await new Promise((r) => setTimeout(r, 30000));
 		const msg = JSON.stringify({ headers: { control: "up-to-date", txid: 1, lsn: 1 } }) + "\n";
-		return new Response(msg, {
-			headers: {
-				"Content-Type": "application/x-ndjson",
-				"Access-Control-Allow-Origin": "*",
-				"Access-Control-Expose-Headers": "electric-handle, electric-cursor, electric-offset, electric-schema",
-				"electric-handle": `${table}-handle`,
-				"electric-schema": "{}",
-				"electric-cursor": "1",
-				"electric-offset": "1_0",
-			},
-		});
+		c.header("Content-Type", "application/x-ndjson");
+		c.header("electric-handle", `${table}-handle`);
+		c.header("electric-schema", "{}");
+		c.header("electric-cursor", "1");
+		c.header("electric-offset", "1_0");
+		return c.body(msg);
 	}
 
 	// Initial sync (offset == -1 or omitted): return all rows for the table
@@ -111,15 +106,10 @@ electricRouter.get("/shape", async (c) => {
 	});
 
 	const ndjson = messages.map((m) => JSON.stringify(m)).join("\n") + "\n";
-	return new Response(ndjson, {
-		headers: {
-			"Content-Type": "application/x-ndjson",
-			"Access-Control-Allow-Origin": "*",
-			"Access-Control-Expose-Headers": "electric-handle, electric-cursor, electric-offset, electric-schema",
-			"electric-handle": `mock-handle-${table}`,
-			"electric-schema": "{}",
-			"electric-cursor": "1",
-			"electric-offset": "1_0",
-		}
-	});
+	c.header("Content-Type", "application/x-ndjson");
+	c.header("electric-handle", `mock-handle-${table}`);
+	c.header("electric-schema", "{}");
+	c.header("electric-cursor", "1");
+	c.header("electric-offset", "1_0");
+	return c.body(ndjson);
 });
