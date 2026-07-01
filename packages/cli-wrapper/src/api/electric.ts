@@ -26,6 +26,33 @@ electricRouter.get("/shape", async (c) => {
 		await new Promise((r) => setTimeout(r, 1000 + jitter));
 	}
 
+	// Simple Mutex to prevent 23 concurrent DB connections
+	class Mutex {
+		private locked = false;
+		private queue: (() => void)[] = [];
+		async acquire() {
+			if (!this.locked) {
+				this.locked = true;
+				return;
+			}
+			return new Promise<void>(resolve => this.queue.push(resolve));
+		}
+		release() {
+			if (this.queue.length > 0) {
+				const resolve = this.queue.shift();
+				resolve && resolve();
+			} else {
+				this.locked = false;
+			}
+		}
+	}
+	
+	// Create it on the global electricRouter object or globally
+	if (!(global as any).dbMutex) {
+		(global as any).dbMutex = new Mutex();
+	}
+	const dbMutex = (global as any).dbMutex;
+
 	// Initial sync: return all rows for the table
 	const toSnakeCase = (obj: any) => {
 		const result: any = {};
@@ -88,7 +115,13 @@ electricRouter.get("/shape", async (c) => {
 
 	if (schemaTable) {
 		try {
-			const all = await db.select().from(schemaTable);
+			await dbMutex.acquire();
+			let all;
+			try {
+				all = await db.select().from(schemaTable);
+			} finally {
+				dbMutex.release();
+			}
 			
 			if (IS_VERBOSE) {
 				console.log(`Mock ElectricSQL streaming ${all.length} ${table}...`);
