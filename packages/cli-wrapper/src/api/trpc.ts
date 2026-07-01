@@ -452,6 +452,11 @@ trpcRouter.all("/*", async (c) => {
 		} else if (p === "v2Workspace.delete" || p === "v2Workspace.deleteMainForHost") {
 			const id = inputData?.id;
 			if (id) {
+				const existing = await db.query.v2Workspaces.findFirst({ where: eq(v2Workspaces.id, id) });
+				if (!existing) {
+					const { pendingPhantomDeletes } = await import("./electric");
+					pendingPhantomDeletes.push({ table: "v2_workspaces", id });
+				}
 				await db.delete(v2Workspaces).where(eq(v2Workspaces.id, id));
 				res = { result: { data: superjsonSerialize({ success: true, alreadyGone: false }) } };
 			} else {

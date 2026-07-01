@@ -8,6 +8,10 @@ import { IS_VERBOSE } from "./server";
 
 const previousState: Record<string, any[]> = {};
 
+// Queue for forcefully sending delete messages for rows that the UI thinks exist
+// but are actually missing from the Postgres database (phantom rows).
+export const pendingPhantomDeletes: { table: string, id: string }[] = [];
+
 electricRouter.get("/shape", async (c) => {
 	const table = c.req.query("table");
 	const offset = c.req.query("offset");
@@ -82,8 +86,6 @@ electricRouter.get("/shape", async (c) => {
 		}
 	}
 
-	const currentLsn = Date.now();
-	
 	if (schemaTable) {
 		try {
 			const all = await db.select().from(schemaTable);
@@ -100,8 +102,39 @@ electricRouter.get("/shape", async (c) => {
 			const currentIds = new Set();
 			
 			// To ensure the client processes updates/deletes during long polling,
-			// we must use a monotonically increasing LSN.
+			// we must use a monotonically increasing LSN per message.
+			let messageLsn = Date.now();
 			
+			// Find rows that were deleted FIRST (so they process before inserts)
+			for (const row of prev) {
+				const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
+				// Check if the old row's primary key is in the current database
+				const stillExists = all.some((r: any) => (r.id ?? r.machineId ?? r.userId ?? "1") === primaryKeyId);
+				if (!stillExists) {
+					messageLsn++;
+					messages.push({
+						headers: { operation: "delete", txid: messageLsn.toString(), lsn: messageLsn.toString(), relation: ["public", table as string] },
+						key: `"${primaryKeyId}"`,
+						value: toSnakeCase(row),
+					});
+				}
+			}
+			
+			// Process phantom deletes requested by TRPC mutations
+			const phantomsToProcess = pendingPhantomDeletes.filter(p => p.table === table);
+			for (const phantom of phantomsToProcess) {
+				messageLsn++;
+				messages.push({
+					headers: { operation: "delete", txid: messageLsn.toString(), lsn: messageLsn.toString(), relation: ["public", table as string] },
+					key: `"${phantom.id}"`,
+					value: { id: phantom.id }, // Provide minimal value object
+				});
+				// Remove from queue
+				const idx = pendingPhantomDeletes.findIndex(p => p === phantom);
+				if (idx > -1) pendingPhantomDeletes.splice(idx, 1);
+			}
+
+			// Now send inserts for all current rows
 			for (const row of all) {
 				const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
 				currentIds.add(String(primaryKeyId));
@@ -110,41 +143,41 @@ electricRouter.get("/shape", async (c) => {
 				if (IS_VERBOSE && table === "v2_workspaces") {
 					console.log(`Workspace shape row:`, mapped);
 				}
-				messages.push({
-					headers: { operation: "insert", txid: currentLsn.toString(), lsn: currentLsn.toString(), relation: ["public", table as string] },
-					key: `"${primaryKeyId}"`,
-					value: mapped,
-				});
-			}
-			
-			// Find rows that were deleted
-			for (const row of prev) {
-				const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
-				if (!currentIds.has(String(primaryKeyId))) {
+				
+				// Only send inserts on initial sync to avoid spamming the client,
+				// OR if the row wasn't in the previous state (it's new)
+				const isNew = !prev.some((r: any) => (r.id ?? r.machineId ?? r.userId ?? "1") === primaryKeyId);
+				
+				if (isInitialSync || isNew) {
+					messageLsn++;
 					messages.push({
-						headers: { operation: "delete", txid: currentLsn.toString(), lsn: currentLsn.toString(), relation: ["public", table as string] },
+						headers: { operation: "insert", txid: messageLsn.toString(), lsn: messageLsn.toString(), relation: ["public", table as string] },
 						key: `"${primaryKeyId}"`,
-						value: toSnakeCase(row),
+						value: mapped,
 					});
 				}
 			}
 			
 			// Update previous state
 			previousState[table as string] = all;
+			
+			// Update the final LSN so the up-to-date message matches the last processed
+			messages.push({
+				headers: { control: "up-to-date", global_last_seen_lsn: messageLsn },
+			});
+
+			c.header("electric-handle", `mock-handle-${table}`);
+			c.header("electric-schema", "{}");
+			c.header("electric-cursor", messageLsn.toString());
+			c.header("electric-offset", `${messageLsn}_0`);
+			return c.json(messages);
 		} catch (err: any) {
 			console.error(`[Mock ElectricSQL] Database error streaming ${table}: ${err.message}`);
 			// Return a 500 error so the client knows it failed and will retry
 			return c.json({ error: "Database query failed" }, 500);
 		}
 	}
-
-	messages.push({
-		headers: { control: "up-to-date", global_last_seen_lsn: currentLsn },
-	});
-
-	c.header("electric-handle", `mock-handle-${table}`);
-	c.header("electric-schema", "{}");
-	c.header("electric-cursor", currentLsn.toString());
-	c.header("electric-offset", `${currentLsn}_0`);
-	return c.json(messages);
+	
+	// Fallback for tables not mapped
+	return c.json([]);
 });
