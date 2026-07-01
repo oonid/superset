@@ -12,14 +12,16 @@ electricRouter.get("/shape", async (c) => {
 	const table = c.req.query("table");
 	const offset = c.req.query("offset");
 
-	// If this is a subsequent poll (offset != -1), wait 3 seconds before querying
-	// the database again. This simulates long-polling while allowing the mock
-	// to "push" newly created workspaces (like when created via TRPC).
-	if (offset && offset !== "-1") {
-		await new Promise((r) => setTimeout(r, 3000));
+	const isInitialSync = !offset || offset === "-1";
+
+	// If this is a subsequent poll, wait a short duration before querying
+	// the database again. 500ms makes the UI feel responsive while still
+	// batching events.
+	if (!isInitialSync) {
+		await new Promise((r) => setTimeout(r, 500));
 	}
 
-	// Initial sync (offset == -1 or omitted): return all rows for the table
+	// Initial sync: return all rows for the table
 	const toSnakeCase = (obj: any) => {
 		const result: any = {};
 		for (const [key, value] of Object.entries(obj)) {
@@ -63,19 +65,20 @@ electricRouter.get("/shape", async (c) => {
 	const messages = [];
 	const schemaTable = tableMap[table as string];
 
-	// Artificial delays to prevent local SQLite foreign key constraint races.
-	// Since all shape streams start concurrently, tables with dependencies
-	// must arrive AFTER their parent tables.
-	const level1 = [
-		"v2_projects", "v2_hosts", "projects", "tasks", "task_statuses",
-		"auth.members", "auth.invitations", "auth.teams", "auth.team_members"
-	];
-	const level2 = ["v2_workspaces", "v2_users_hosts", "v2_clients", "workspaces"];
-	
-	if (level2.includes(table as string)) {
-		await new Promise(r => setTimeout(r, 2000));
-	} else if (level1.includes(table as string)) {
-		await new Promise(r => setTimeout(r, 1000));
+	// Artificial delays to prevent local SQLite foreign key constraint races
+	// ONLY on initial sync.
+	if (isInitialSync) {
+		const level1 = [
+			"v2_projects", "v2_hosts", "projects", "tasks", "task_statuses",
+			"auth.members", "auth.invitations", "auth.teams", "auth.team_members"
+		];
+		const level2 = ["v2_workspaces", "v2_users_hosts", "v2_clients", "workspaces"];
+		
+		if (level2.includes(table as string)) {
+			await new Promise(r => setTimeout(r, 2000));
+		} else if (level1.includes(table as string)) {
+			await new Promise(r => setTimeout(r, 1000));
+		}
 	}
 
 	if (schemaTable) {
