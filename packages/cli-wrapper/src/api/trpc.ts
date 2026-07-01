@@ -286,6 +286,7 @@ trpcRouter.all("/*", async (c) => {
 		} else if (p === "v2Workspace.getFromHost") {
 			const orgId = inputData?.organizationId;
 			const id = inputData?.id;
+			console.log(`DEBUG getFromHost: orgId=${orgId}, id=${id}`);
 			if (orgId && id) {
 				const { v2Workspaces } = await import("@superset/db/schema");
 				const ws = await db.query.v2Workspaces.findFirst({
@@ -294,10 +295,11 @@ trpcRouter.all("/*", async (c) => {
 						eq(v2Workspaces.id, id)
 					)
 				});
+				console.log(`DEBUG getFromHost: ws found? ${!!ws}`);
 				if (ws) res = { result: { data: superjsonSerialize(ws) } };
-				else res = { error: { message: "NOT_FOUND", code: -32603, data: { code: "NOT_FOUND", httpStatus: 404 } } };
+				else res = { result: { data: superjsonSerialize(null) } };
 			} else {
-				res = { error: { message: "Missing id", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
+				res = { error: { message: "Missing id", code: -32600, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
 			}
 		} else if (p === "workspaceCleanup.inspect") {
 			res = { result: { data: superjsonSerialize({ canDestroy: true, reasons: [] }) } };
