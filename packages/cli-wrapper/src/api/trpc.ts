@@ -457,6 +457,22 @@ trpcRouter.all("/*", async (c) => {
 			} else {
 				res = { error: { message: "Missing id", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
 			}
+		} else if (p === "v2Host.rename") {
+			const hostId = inputData?.hostId;
+			const name = inputData?.name;
+			if (hostId && name !== undefined) {
+				const [updated] = await db.update(v2Hosts)
+					.set({ name })
+					.where(eq(v2Hosts.machineId, hostId))
+					.returning();
+				if (updated) {
+					res = { result: { data: superjsonSerialize(updated) } };
+				} else {
+					res = { error: { message: "NOT_FOUND", code: -32603, data: { code: "NOT_FOUND", httpStatus: 404 } } };
+				}
+			} else {
+				res = { error: { message: "Missing hostId or name", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
+			}
 		} else {
 			console.warn(`Unimplemented tRPC query/mutation: ${p}`);
 		}
