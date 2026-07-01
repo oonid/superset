@@ -1,4 +1,4 @@
-import { createCommand, number, string } from "@superset/cli-framework";
+import { createCommand, number, string, boolean } from "@superset/cli-framework";
 import { startServer } from "../../api/server";
 
 export default createCommand()({
@@ -11,6 +11,9 @@ export default createCommand()({
 			.desc("Port for the web/integrations shim (matches upstream apps/web)")
 			.default(3000),
 		dbUrl: string().desc("PostgreSQL Database URL").env("DATABASE_URL"),
+		verbose: boolean()
+			.desc("Enable verbose logging (including ElectricSQL shape streams)")
+			.default(false),
 	},
 	run: async ({ options }) => {
 		if (!options.dbUrl) {
@@ -23,6 +26,7 @@ export default createCommand()({
 			apiPort: options.apiPort,
 			webPort: options.webPort,
 			dbUrl: options.dbUrl,
+			verbose: options.verbose,
 		});
 	},
 });

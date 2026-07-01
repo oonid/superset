@@ -14,7 +14,10 @@ export interface ServerConfig {
 	apiPort: number;
 	webPort: number;
 	dbUrl: string;
+	verbose?: boolean;
 }
+
+export let IS_VERBOSE = false;
 
 // Hostname that routes the Neon serverless driver at the local neon-http proxy
 // (see packages/db/src/local-proxy.ts).
@@ -42,6 +45,7 @@ if (!["silent", "off", "none"].includes(logLevel)) {
 	app.use(
 		"*",
 		logger((str, ...rest) => {
+			if (!IS_VERBOSE && str.includes("/v1/shape")) return;
 			console.log(str, ...rest);
 		}),
 	);
@@ -68,6 +72,10 @@ app.route("/v1", electricRouter);
 app.route("/integrations", webRouter);
 
 export async function startServer(config: ServerConfig): Promise<void> {
+	if (config.verbose) {
+		IS_VERBOSE = true;
+	}
+
 	// Bind the same app to both upstream-convention ports in one process:
 	// apps/api (default 3001) for the API, apps/web (default 3000) for the
 	// browser-launched integrations shim. Both ports serve the full app, so the

@@ -4,6 +4,7 @@ import { v2Workspaces, v2Projects, organizations } from "@superset/db/schema";
 import * as schemas from "@superset/db/schema";
 
 export const electricRouter = new Hono();
+import { IS_VERBOSE } from "./server";
 
 const previousState: Record<string, any[]> = {};
 
@@ -80,6 +81,10 @@ electricRouter.get("/shape", async (c) => {
 	if (schemaTable) {
 		const all = await db.select().from(schemaTable);
 		
+		if (IS_VERBOSE) {
+			console.log(`Mock ElectricSQL streaming ${all.length} ${table}...`);
+		}
+		
 		// Ensure previousState array exists for this table
 		if (!previousState[table as string]) {
 			previousState[table as string] = [];
@@ -92,6 +97,9 @@ electricRouter.get("/shape", async (c) => {
 			currentIds.add(String(primaryKeyId));
 			
 			const mapped = toSnakeCase(row);
+			if (IS_VERBOSE && table === "v2_workspaces") {
+				console.log(`Workspace shape row:`, mapped);
+			}
 			messages.push({
 				headers: { operation: "insert", txid: "1", lsn: "1", relation: ["public", table as string] },
 				key: `"${primaryKeyId}"`,
