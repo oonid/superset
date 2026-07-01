@@ -50,6 +50,24 @@ trpcRouter.all("/*", async (c) => {
 			if (user) {
 				currentUser = user;
 			}
+		} else if (token.split(".").length === 3) {
+			// Parse JWT
+			try {
+				const jwt = await import("jsonwebtoken");
+				const decoded = jwt.decode(token) as any;
+				if (decoded && decoded.sub) {
+					const user = await db.query.users.findFirst({
+						where: eq(users.id, decoded.sub)
+					});
+					if (user) {
+						currentUser = user;
+						currentSession = {
+							userId: user.id,
+							activeOrganizationId: decoded.organizationIds?.[0] || user.organizationIds?.[0] || null
+						} as any;
+					}
+				}
+			} catch (e) {}
 		}
 	}
 
@@ -224,6 +242,7 @@ trpcRouter.all("/*", async (c) => {
 			const machineId = inputData?.machineId;
 			const name = inputData?.name;
 			if (orgId && machineId && name) {
+				console.log("DEBUG host.ensure:", { orgId, machineId, name, currentSessionUserId: currentSession?.userId, token });
 				let host = await db.query.v2Hosts.findFirst({
 					where: and(
 						eq(v2Hosts.organizationId, orgId),
@@ -268,20 +287,37 @@ trpcRouter.all("/*", async (c) => {
 			const orgId = inputData?.organizationId;
 			const id = inputData?.id;
 			if (orgId && id) {
+				const { v2Workspaces } = await import("@superset/db/schema");
 				const ws = await db.query.v2Workspaces.findFirst({
 					where: and(
 						eq(v2Workspaces.organizationId, orgId),
 						eq(v2Workspaces.id, id)
 					)
 				});
-				if (ws) {
-					res = { result: { data: superjsonSerialize(ws) } };
-				} else {
-					res = { error: { message: "NOT_FOUND", code: -32603, data: { code: "NOT_FOUND", httpStatus: 404 } } };
-				}
+				if (ws) res = { result: { data: superjsonSerialize(ws) } };
+				else res = { error: { message: "NOT_FOUND", code: -32603, data: { code: "NOT_FOUND", httpStatus: 404 } } };
 			} else {
-				res = { error: { message: "Missing input", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
+				res = { error: { message: "Missing id", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
 			}
+		} else if (p === "workspaceCleanup.inspect") {
+			res = { result: { data: superjsonSerialize({ canDestroy: true, reasons: [] }) } };
+		} else if (p === "workspaceCleanup.destroy") {
+			const id = inputData?.workspaceId;
+			if (id) {
+				const { v2Workspaces } = await import("@superset/db/schema");
+				await db.delete(v2Workspaces).where(eq(v2Workspaces.id, id));
+				res = { result: { data: superjsonSerialize({ status: "success" }) } };
+			} else {
+				res = { error: { message: "Missing id", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
+			}
+		} else if (p === "git.getStatus") {
+			res = { result: { data: superjsonSerialize({ isClean: true, isDetachedHead: false, changes: [], activeBranch: "main" }) } };
+		} else if (p === "v2Workspace.listFromHost") {
+			const id = inputData?.id;
+			const name = inputData?.name;
+			const branch = inputData?.branch;
+			const hostId = inputData?.hostId;
+			const taskId = inputData?.taskId;
 		} else if (p === "v2Workspace.update") {
 			const id = inputData?.id;
 			const name = inputData?.name;
