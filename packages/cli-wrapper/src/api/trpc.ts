@@ -224,23 +224,43 @@ trpcRouter.all("/*", async (c) => {
 			const machineId = inputData?.machineId;
 			const name = inputData?.name;
 			if (orgId && machineId && name) {
-				const existing = await db.query.v2Hosts.findFirst({
+				let host = await db.query.v2Hosts.findFirst({
 					where: and(
 						eq(v2Hosts.organizationId, orgId),
 						eq(v2Hosts.machineId, machineId)
 					)
 				});
-				if (existing) {
-					res = { result: { data: superjsonSerialize(existing) } };
-				} else {
+				if (!host) {
 					const [newHost] = await db.insert(v2Hosts).values({
 						organizationId: orgId,
 						machineId: machineId,
 						name: name,
 						isOnline: true,
 					}).returning();
-					res = { result: { data: superjsonSerialize(newHost) } };
+					host = newHost;
 				}
+				
+				if (currentSession?.userId) {
+					// Ensure user is linked to host
+					const { v2UsersHosts } = await import("@superset/db/schema");
+					const existingLink = await db.query.v2UsersHosts.findFirst({
+						where: and(
+							eq(v2UsersHosts.organizationId, orgId),
+							eq(v2UsersHosts.hostId, machineId),
+							eq(v2UsersHosts.userId, currentSession.userId)
+						)
+					});
+					if (!existingLink) {
+						await db.insert(v2UsersHosts).values({
+							organizationId: orgId,
+							hostId: machineId,
+							userId: currentSession.userId,
+							role: "owner"
+						});
+					}
+				}
+				
+				res = { result: { data: superjsonSerialize(host) } };
 			} else {
 				res = { error: { message: "Missing input", code: -32603, data: { code: "BAD_REQUEST", httpStatus: 400 } } };
 			}
