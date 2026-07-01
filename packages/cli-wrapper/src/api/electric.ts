@@ -5,6 +5,8 @@ import * as schemas from "@superset/db/schema";
 
 export const electricRouter = new Hono();
 
+const previousState: Record<string, any[]> = {};
+
 electricRouter.get("/shape", async (c) => {
 	const table = c.req.query("table");
 	const offset = c.req.query("offset");
@@ -77,21 +79,40 @@ electricRouter.get("/shape", async (c) => {
 
 	if (schemaTable) {
 		const all = await db.select().from(schemaTable);
-		console.log(`Mock ElectricSQL streaming ${all.length} ${table}...`);
+		
+		// Ensure previousState array exists for this table
+		if (!previousState[table as string]) {
+			previousState[table as string] = [];
+		}
+		const prev = previousState[table as string];
+		const currentIds = new Set();
+		
 		for (const row of all) {
-			const mapped = toSnakeCase(row);
-			if (table === "v2_workspaces") {
-				console.log(`Workspace shape row:`, mapped);
-			}
-			
-			// Extract id if available (for auth tables it might not exist or be different)
 			const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
+			currentIds.add(String(primaryKeyId));
+			
+			const mapped = toSnakeCase(row);
 			messages.push({
 				headers: { operation: "insert", txid: "1", lsn: "1", relation: ["public", table as string] },
 				key: `"${primaryKeyId}"`,
 				value: mapped,
 			});
 		}
+		
+		// Find rows that were deleted
+		for (const row of prev) {
+			const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
+			if (!currentIds.has(String(primaryKeyId))) {
+				messages.push({
+					headers: { operation: "delete", txid: "1", lsn: "1", relation: ["public", table as string] },
+					key: `"${primaryKeyId}"`,
+					value: toSnakeCase(row),
+				});
+			}
+		}
+		
+		// Update previous state
+		previousState[table as string] = all;
 	}
 
 	messages.push({
