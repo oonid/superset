@@ -81,6 +81,8 @@ electricRouter.get("/shape", async (c) => {
 		}
 	}
 
+	const currentLsn = Date.now();
+	
 	if (schemaTable) {
 		const all = await db.select().from(schemaTable);
 		
@@ -95,6 +97,9 @@ electricRouter.get("/shape", async (c) => {
 		const prev = previousState[table as string];
 		const currentIds = new Set();
 		
+		// To ensure the client processes updates/deletes during long polling,
+		// we must use a monotonically increasing LSN.
+		
 		for (const row of all) {
 			const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
 			currentIds.add(String(primaryKeyId));
@@ -104,7 +109,7 @@ electricRouter.get("/shape", async (c) => {
 				console.log(`Workspace shape row:`, mapped);
 			}
 			messages.push({
-				headers: { operation: "insert", txid: "1", lsn: "1", relation: ["public", table as string] },
+				headers: { operation: "insert", txid: currentLsn.toString(), lsn: currentLsn.toString(), relation: ["public", table as string] },
 				key: `"${primaryKeyId}"`,
 				value: mapped,
 			});
@@ -115,7 +120,7 @@ electricRouter.get("/shape", async (c) => {
 			const primaryKeyId = row.id ?? row.machineId ?? row.userId ?? "1";
 			if (!currentIds.has(String(primaryKeyId))) {
 				messages.push({
-					headers: { operation: "delete", txid: "1", lsn: "1", relation: ["public", table as string] },
+					headers: { operation: "delete", txid: currentLsn.toString(), lsn: currentLsn.toString(), relation: ["public", table as string] },
 					key: `"${primaryKeyId}"`,
 					value: toSnakeCase(row),
 				});
@@ -127,12 +132,12 @@ electricRouter.get("/shape", async (c) => {
 	}
 
 	messages.push({
-		headers: { control: "up-to-date", global_last_seen_lsn: 1 },
+		headers: { control: "up-to-date", global_last_seen_lsn: currentLsn },
 	});
 
 	c.header("electric-handle", `mock-handle-${table}`);
 	c.header("electric-schema", "{}");
-	c.header("electric-cursor", "1");
-	c.header("electric-offset", "1_0");
+	c.header("electric-cursor", currentLsn.toString());
+	c.header("electric-offset", `${currentLsn}_0`);
 	return c.json(messages);
 });
