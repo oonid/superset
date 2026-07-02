@@ -242,7 +242,6 @@ trpcRouter.all("/*", async (c) => {
 			const machineId = inputData?.machineId;
 			const name = inputData?.name;
 			if (orgId && machineId && name) {
-				console.log("DEBUG host.ensure:", { orgId, machineId, name, currentSessionUserId: currentSession?.userId, token });
 				let host = await db.query.v2Hosts.findFirst({
 					where: and(
 						eq(v2Hosts.organizationId, orgId),
